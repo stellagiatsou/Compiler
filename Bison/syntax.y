@@ -4,7 +4,6 @@
     #include <stdbool.h>
     #include "extra/hashtbl.c"
  
-
     extern FILE *yyin;
     extern int yylex();
     extern void yyerror(const char* err);
@@ -17,15 +16,12 @@
 %define parse.error verbose
 
 %union {
-
     int intval;
     double realval;
     bool booleanval; 
-    char charval;
+  //char charval;
     char* strval;
-
 }
-
 
 //KEYWORDS
 %token T_PROGRAM		            "program"
@@ -64,7 +60,7 @@
 %token <intval> T_ICONST		    "iconst"
 %token <realval> T_RCONST		    "rconst"
 %token <booleanval> T_BCONST	            "bconst"
-%token <charval> T_CCONST		    "cconst"
+%token <strval> T_CCONST		    "cconst"
 %token <strval> T_SCONST		    "sconst"
 
 //OPERATORS
@@ -88,20 +84,13 @@
 %token T_ASSIGN		                    ":="			
 %token T_DOTDOT		                    ".."
 
-%token T_EOF	    0                       "EOF"
+%token T_EOF                    0           "EOF"
 
 /* Θα βγάλει warnings - θα επιλυόταν στην σημασιολογική ανάλυση
-%type <strval> header declarations constdefs constant_defs expression variable expressions constant setexpression elexpressions elexpression 
-%type <strval> typedefs type_defs type_def dims limits limit typename standard_type fields field identifiers vardefs variable_defs subprograms 
-%type <strval> subprogram sub_header formal_parameters parameter_list pass comp_statement statements statement assignment if_statement if_tail 
-%type <strval> while_statement for_statement iter_space with_statement subprogram_call io_statement read_list read_item write_list write_item
+%type <strval> header declarations constdefs constant_defs expression variable expressions constant setexpression elexpressions elexpression typedefs type_defs type_def dims limits limit typename standard_type fields field identifiers vardefs variable_defs subprograms subprogram sub_header formal_parameters parameter_list pass comp_statement statements statement assignment if_statement if_tail while_statement for_statement iter_space with_statement subprogram_call io_statement read_list read_item write_list write_item
 */
-
-%left T_INOP
-%left T_RELOP
-%left T_EQU
-%left T_OROP
-%left T_ADDOP
+%left T_EQU T_RELOP T_INOP
+%left T_ADDOP T_OROP
 %left T_MULDIVANDOP
 %left T_NOTOP
 %left T_LPAREN T_RPAREN T_LBRACK T_RBRACK T_DOT
@@ -109,30 +98,29 @@
 %nonassoc LOWER_THAN_ELSE
 %nonassoc T_ELSE
 
+/* %nonassoc T_EQU T_RELOP T_INOP*/
 %start program
 
 %%
-
 			
-program:                header declarations subprograms comp_statement T_DOT 
+program:                header declarations subprograms {scope++;} comp_statement {hashtbl_get(hashtbl, scope); scope--;} T_DOT                    { hashtbl_get(hashtbl, scope); }
 			;
 
-header:                 T_PROGRAM   T_ID  T_SEMI                                        { hashtbl_insert(hashtbl, $2, NULL, scope); } 
-                        | error     T_ID  T_SEMI                                        { yyerror("Wrong use of 'header'"); yyerrok; }
-                        | error     error T_SEMI                                        { yyerror("Wrong use of 'header'"); yyerrok; }
-                        | T_PROGRAM error T_SEMI                                        { yyerror("Wrong use of 'header'"); yyerrok; }
-                        | T_PROGRAM T_ID  error                                         { yyerror("Wrong use of 'header'"); yyerrok; }
+header:                 T_PROGRAM   T_ID  T_SEMI                                                { hashtbl_insert(hashtbl, $2, NULL, scope); }                                             
+                        | T_PROGRAM T_ID  error                                                 { hashtbl_insert(hashtbl, $2, NULL, scope); yyerror("Semicolon (;) is missing [124]"); yyerrok; }
 			;
 
 declarations:           constdefs typedefs vardefs
 			;
 
 constdefs:              T_CONST constant_defs T_SEMI
-                        | %empty                                                        { }                                                  
+                        |T_CONST constant_defs error                                            { yyerror("Semicolon (;) is missing [131]"); yyerrok; }
+                        | %empty                                                                { }                                                  
 			;
 
-constant_defs:          constant_defs T_SEMI T_ID T_EQU expression                      { hashtbl_insert(hashtbl, $3, NULL, scope); }                     
-                        | T_ID T_EQU expression                                         { hashtbl_insert(hashtbl, $1, NULL, scope); }                               
+constant_defs:          constant_defs T_SEMI T_ID T_EQU expression                              { hashtbl_insert(hashtbl, $3, NULL, scope); }                     
+                        constant_defs error  T_ID T_EQU expression                              { hashtbl_insert(hashtbl, $3, NULL, scope); yyerror("Semicolon (;) is missing [136]"); yyerrok; }
+                        | T_ID T_EQU expression                                                 { hashtbl_insert(hashtbl, $1, NULL, scope); }                               
 			;
 
 expression:             expression T_RELOP expression
@@ -178,10 +166,12 @@ elexpression:           expression T_DOTDOT expression
 			;
 
 typedefs:               T_TYPE type_defs T_SEMI
+                        |T_TYPE type_defs error                                                 { yyerror("Semicolon (;) is missing [183]"); yyerrok; }
                         | %empty                                                                { }
 			;
 
 type_defs:              type_defs T_SEMI T_ID T_EQU type_def                                    { hashtbl_insert(hashtbl, $3, NULL, scope); }                                         
+                        | type_defs error T_ID T_EQU type_def                                   { hashtbl_insert(hashtbl, $3, NULL, scope); yyerror("Semicolon (;) is missing [188]"); yyerrok; }
                         | T_ID T_EQU type_def                                                   { hashtbl_insert(hashtbl, $1, NULL, scope); }                                       
 			;
 
@@ -219,6 +209,7 @@ standard_type:          T_INTEGER
 			;
 
 fields:                 fields T_SEMI field
+                        | fields error field                                                    { yyerror("Semicolon (;) is missing [226]"); yyerrok; }
                         | field
 			;
 
@@ -230,31 +221,37 @@ identifiers:            identifiers T_COMMA T_ID                                
 			;
 
 vardefs:                T_VAR variable_defs T_SEMI
+                        |T_VAR variable_defs error                                              { yyerror("Semicolon (;) is missing [238]"); yyerrok; }
                         | %empty                                                                { }
 			;
 
 variable_defs:          variable_defs T_SEMI identifiers T_COLON typename
+                        | variable_defs error identifiers T_COLON typename                       { yyerror("Semicolon (;) is missing [243]"); yyerrok; }
                         | identifiers T_COLON typename
 			;
 
 subprograms:            subprograms subprogram T_SEMI
+                        | subprograms subprogram error                                          { yyerror("Semicolon (;) is missing [248]"); yyerrok; }
                         | %empty                                                                { }
 			;
 
 subprogram:             sub_header T_SEMI T_FORWARD
-                        | sub_header T_SEMI declarations subprograms comp_statement
-			;
+                        | sub_header error T_FORWARD                                            { yyerror("Semicolon (;) is missing [253]"); yyerrok; }
+                        | sub_header T_SEMI declarations subprograms comp_statement  
+			| sub_header error  declarations subprograms comp_statement             { yyerror("Semicolon (;) is missing [255]"); yyerrok; }
+                        ;
 
 sub_header:             T_FUNCTION T_ID formal_parameters T_COLON standard_type                 { hashtbl_insert(hashtbl, $2, NULL, scope); }
-                        | T_PROCEDURE T_ID formal_parameters                                    { hashtbl_insert(hashtbl, $2, NULL, scope); }
+                        | T_PROCEDURE T_ID formal_parameters                                    { hashtbl_insert(hashtbl, $2, NULL, scope);}
                         | T_FUNCTION T_ID                                                       { hashtbl_insert(hashtbl, $2, NULL, scope); }
 			;
 
-formal_parameters:      T_LPAREN parameter_list T_RPAREN
+formal_parameters:      T_LPAREN parameter_list T_RPAREN 
                         | %empty                                                                { }
 			;
 
-parameter_list:         parameter_list T_SEMI pass identifiers T_COLON typename
+parameter_list:         parameter_list T_SEMI pass identifiers T_COLON typename      
+                        | parameter_list error pass identifiers T_COLON typename                { yyerror("Semicolon (;) is missing [268]"); yyerrok; }
                         | pass identifiers T_COLON typename 
 			;
 
@@ -262,10 +259,10 @@ pass:                   T_VAR
                         | %empty                                                                { }
 			;
 
-comp_statement:         T_BEGIN { scope++; } statements T_END                                   { hashtbl_get(hashtbl, scope); scope--; }
+comp_statement:         T_BEGIN statements T_END                                      
 			;
 
-statements:             statements T_SEMI statement
+statements:             statements T_SEMI statement               
                         | statement
 			;
 
@@ -276,40 +273,39 @@ statement:              assignment
                         | with_statement
                         | subprogram_call
                         | io_statement
-                        | comp_statement
-                        | %empty                                                                { }
-			;
+                        | comp_statement               
+                        | %empty                                                                 { }
+			;                                                                       
 
 assignment:             variable T_ASSIGN expression
                         | variable T_ASSIGN T_SCONST
                         | error    T_ASSIGN T_SCONST                                             { yyerror("Wrong use of 'assignment'"); yyerrok; }
-                        | error    error    T_SCONST                                             { yyerror("Wrong use of 'assignment'"); yyerrok; }
                         | variable error    T_SCONST                                             { yyerror("Wrong use of 'assignment'"); yyerrok; }
-                        | variable  T_ASSIGN error                                               { yyerror("Wrong use of 'assignment'"); yyerrok; }
-			;
+                        | variable T_ASSIGN error                                                { yyerror("Wrong use of 'assignment'"); yyerrok; }
+			; 
 
 if_statement:           T_IF expression T_THEN { scope++; } statement if_tail                    { hashtbl_get(hashtbl, scope); scope--; }
 			;
 
 if_tail:                T_ELSE statement
-                        | %empty                      %prec LOWER_THAN_ELSE                     { }
+                        | %empty                            %prec LOWER_THAN_ELSE               { }
 			;     
 
-while_statement:        T_WHILE expression T_DO { scope++; } statement                          { hashtbl_get(hashtbl, scope); scope--; }
+while_statement:        T_WHILE expression T_DO { scope++; } statement                           { hashtbl_get(hashtbl, scope); scope--; }
 			;
 
-for_statement:          T_FOR T_ID T_ASSIGN iter_space T_DO { scope++; } statement              { hashtbl_insert(hashtbl, $2, NULL, scope); }   { hashtbl_get(hashtbl, scope); scope--; }
+for_statement:          T_FOR T_ID T_ASSIGN iter_space T_DO { scope++; } statement               { hashtbl_insert(hashtbl, $2, NULL, scope); }   { hashtbl_get(hashtbl, scope); scope--; }
 			;
 
 iter_space:             expression T_TO expression
                         | expression T_DOWNTO expression 
 			;
 
-with_statement:         T_WITH variable T_DO { scope++; } statement                             { hashtbl_get(hashtbl, scope); scope--; }
+with_statement:         T_WITH variable T_DO { scope++; } statement                              { hashtbl_get(hashtbl, scope); scope--; }
 			;
 
-subprogram_call:        T_ID                                                                    { hashtbl_insert(hashtbl, $1, NULL, scope); }
-                        | T_ID T_LPAREN expressions T_RPAREN                                    { hashtbl_insert(hashtbl, $1, NULL, scope); }
+subprogram_call:        T_ID                                                                     { hashtbl_insert(hashtbl, $1, NULL, scope); }
+                        | T_ID T_LPAREN expressions T_RPAREN                                     { hashtbl_insert(hashtbl, $1, NULL, scope); }
 			;
 
 io_statement:           T_READ T_LPAREN read_list T_RPAREN
@@ -335,15 +331,13 @@ write_item:             expression
 %%
 
 int main(int argc, char *argv[]){
-//Ανοιγεί το αρχείο
+        //Ανοιγεί το αρχείο
 	int token;
 
         if(!(hashtbl = hashtbl_create(10, NULL))){
 
                 puts("Error, failed to initialize hashtable!");
                 exit(EXIT_FAILURE);
-
-
         }
 
 
@@ -356,7 +350,7 @@ int main(int argc, char *argv[]){
 		}
 	}
        
-        yyparse();
+        yyparse();                      //Κάνει συντακτική ανάλυση
         hashtbl_get(hashtbl, scope);
 	fclose(yyin);			//Κλείσε το αρχείο
         hashtbl_destroy(hashtbl);
