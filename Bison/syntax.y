@@ -19,7 +19,6 @@
     int intval;
     double realval;
     bool booleanval; 
-  //char charval;
     char* strval;
 }
 
