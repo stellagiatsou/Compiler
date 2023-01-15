@@ -1,5 +1,5 @@
 %{
-#define FLEX_DEBUG 1		//Αν 0 μην επιστρέψεις τίποτα εκτός από λάθη
+#define FLEX_DEBUG 1		
 //#include "tokens.h"			
 #include <stdio.h>
 #include <stdlib.h>
@@ -89,7 +89,7 @@ CCONST			\'[ "#$%'()*+΄_./0-9:;<=>?@A-Z[\\\]^_`a-z{|}~]\'|'\\[nftrbv]\'
 
 \"													{ strcpy(str_buf, ""); BEGIN(STRING);}
 <STRING>\"											{ BEGIN(INITIAL); printf("STRING: %s {id: %d} at line %d \n", str_buf, T_SCONST, yylineno); yylval.strval = strdup(str_buf); return T_SCONST;}	 
-<STRING>(\n|\r\n)									{ yyerror("New line found without \\"); }		//BEGIN(INITIAL); yyerror("New line found without \\"); | strcpy(str_buf, ""); 
+<STRING>(\n|\r\n)									{ yyerror("New line found without \\"); }		
 <STRING>(\\\n|\\\r\n)								{ }	
 <STRING>(\\.|[^"\\])								{ 
 														if(strlen(yytext) == 2){
@@ -116,11 +116,11 @@ CCONST			\'[ "#$%'()*+΄_./0-9:;<=>?@A-Z[\\\]^_`a-z{|}~]\'|'\\[nftrbv]\'
 <STRING>.											{ yyerror("Uknown character");}
 
 
-\{													{ printf("Line:: %d | Comment found \n", yylineno); BEGIN(COMMENT); }						//sto prwto meros dilwnw char str_buf_comments[256];	strcpy(str_buf_comments, "");
-<COMMENT>[^}\n]+									{ }																							//strcat(str_buf_comments, yytext);
+\{													{ printf("Line:: %d | Comment found \n", yylineno); BEGIN(COMMENT); }						
+<COMMENT>[^}\n]+									{ }																							
 <COMMENT>(\n|\r\n)									{ yylineno--; yyerror("Comment not finished with }"); yylineno++; BEGIN(INITIAL); }				
 <COMMENT><<EOF>>									{ yyerror("End of comment without closing it");}
-<COMMENT>\}											{ BEGIN(INITIAL); printf("Line:: %d | comment ended (same line)\n",yylineno);}				//%s -> str_buf_comments
+<COMMENT>\}											{ BEGIN(INITIAL); printf("Line:: %d | comment ended (same line)\n",yylineno);}				
 
 ">"|">="|"<"|"<="|"<>"								{token_print(T_RELOP); return T_RELOP;}
 "+"|"-"												{token_print(T_ADDOP); return T_ADDOP;}
