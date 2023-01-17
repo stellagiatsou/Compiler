@@ -7,6 +7,6 @@ LEXER:
 
 BISON:
     flex newlexer.l                 -> compile the file lexer.l / flex meta-tool generates lex.yy.c file
-    bison -v -d syntax.y            -> compile the file syntax.y / yacc meta-tool generates syntax.tab.c file
+    bison -v -d syntax.y            -> compile the file syntax.y / bison meta-tool generates syntax.tab.c file
     gcc syntax.tab.c lex.yy.c -lm   -> compile the files syntax.tab.c file & lex.yy.c 
     ./a.out pasc500test1.p          -> run the pasc500test1 test-file 
